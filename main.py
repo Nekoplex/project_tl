@@ -3,7 +3,7 @@ import cv2
 import os
 from vkbottle.user import User, Message
 from vkbottle import VideoUploader
-from src.config import TOKEN  # Импорт токена из config.py
+from config import TOKEN  # Импорт токена из config.py
 
 user = User(token=TOKEN)  # Используем токен из config.py
 video_uploader = VideoUploader(user.api)
