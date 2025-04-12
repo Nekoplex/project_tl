@@ -1,6 +1,6 @@
 import requests
-import cv2
 import os
+import subprocess
 from vkbottle.user import User, Message
 from vkbottle import VideoUploader
 from config import TOKEN  # Импорт токена из config.py
@@ -30,7 +30,7 @@ async def cache_images_handler(message: Message, time1: str, time2: str):
 
     await message.answer("Процесс кеширования завершён✅")
 
-# Создание таймлапса
+# Создание таймлапса с использованием FFmpeg
 @user.on.message(text="!таймлапс <time3> <time4>")
 async def art_handler(message: Message, time3: str, time4: str):
     await message.answer("Создание таймлапса запущено✅")
@@ -43,35 +43,34 @@ async def art_handler(message: Message, time3: str, time4: str):
         await message.answer("Нет изображений для таймлапса.")
         return
 
-    # Проверка изображений
-    first_frame = cv2.imread(os.path.join(CACHE_FOLDER, images[0]))
-    if first_frame is None:
-        await message.answer("Ошибка: изображения не читаются.")
+    # Проверка наличия изображений
+    if not images:
+        await message.answer("Нет изображений для создания таймлапса.")
         return
 
-    height, width, layers = first_frame.shape
-    video = cv2.VideoWriter(VIDEO_PATH, cv2.VideoWriter_fourcc(*'mp4v'), 30, (width, height))
-
-    for image in images:
-        frame = cv2.imread(os.path.join(CACHE_FOLDER, image))
-        if frame is None:
-            await message.answer(f"Ошибка загрузки изображения: {image}")
-            continue
-        video.write(frame)
-
-    cv2.destroyAllWindows()
-    video.release()
-
-    # Проверяем, что видео действительно записалось
-    if not os.path.exists(VIDEO_PATH) or os.path.getsize(VIDEO_PATH) == 0:
-        await message.answer("Ошибка: видеофайл не был создан или пустой.")
-        return
-
-    # Загрузка видео в VK
+    # Генерация видео с помощью FFmpeg
     try:
+        ffmpeg_command = [
+            "ffmpeg",
+            "-framerate", "30",
+            "-i", os.path.join(CACHE_FOLDER, "%d.png"),
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            VIDEO_PATH
+        ]
+        subprocess.run(ffmpeg_command, check=True)
+
+        # Проверяем, что видео действительно записалось
+        if not os.path.exists(VIDEO_PATH) or os.path.getsize(VIDEO_PATH) == 0:
+            await message.answer("Ошибка: видеофайл не был создан или пустой.")
+            return
+
+        # Загрузка видео в VK
         ready_video = await video_uploader.upload(file_source=VIDEO_PATH)
 
         await message.answer(f"Таймлапс {time3}-{time4} готов✅", attachment=ready_video)
+    except subprocess.CalledProcessError as e:
+        await message.answer(f"Ошибка при создании видео с помощью FFmpeg: {str(e)}")
     except Exception as e:
         await message.answer(f"Ошибка при отправке видео: {str(e)}")
 
