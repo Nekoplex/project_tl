@@ -30,7 +30,7 @@ async def cache_images_handler(message: Message, time1: str, time2: str):
 
     await message.answer("Процесс кеширования завершён✅")
 
-# Создание таймлапса без использования файла images.txt
+# Создание таймлапса с использованием списка файлов
 @user.on.message(text="!таймлапс <time3> <time4>")
 async def art_handler(message: Message, time3: str, time4: str):
     await message.answer("Создание таймлапса запущено✅")
@@ -44,18 +44,19 @@ async def art_handler(message: Message, time3: str, time4: str):
         await message.answer("Нет изображений для создания таймлапса.")
         return
 
-    # Проверяем, что изображения существуют
-    if not images:
-        await message.answer("Нет изображений для создания таймлапса.")
-        return
+    # Генерация списка файлов для FFmpeg
+    input_file_list = os.path.join(CACHE_FOLDER, "input.txt")
+    with open(input_file_list, "w") as file:
+        for image in images:
+            file.write(f"file '{image}'\n")
 
     try:
         # Генерация видео с помощью FFmpeg
         ffmpeg_command = [
             "ffmpeg",
-            "-framerate", "30",
-            "-pattern_type", "glob",
-            "-i", os.path.join(CACHE_FOLDER, "*.png"),
+            "-f", "concat",
+            "-safe", "0",
+            "-i", input_file_list,
             "-c:v", "libx264",
             "-pix_fmt", "yuv420p",
             VIDEO_PATH
@@ -74,5 +75,3 @@ async def art_handler(message: Message, time3: str, time4: str):
         await message.answer(f"Ошибка при создании видео с помощью FFmpeg: {e}")
     except Exception as e:
         await message.answer(f"Ошибка при отправке видео: {e}")
-
-user.run_forever()
