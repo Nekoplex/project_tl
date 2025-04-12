@@ -36,24 +36,27 @@ async def art_handler(message: Message, time3: str, time4: str):
     await message.answer("Создание таймлапса запущено✅")
 
     time3, time4 = int(time3), int(time4)
-    images = [img for img in os.listdir(CACHE_FOLDER) if img.endswith(".png") and time3 <= int(img.split('.')[0]) <= time4]
+    images = [img for img in os.listdir(CACHE_FOLDER)
+              if img.endswith(".png") and time3 <= int(img.split('.')[0]) <= time4]
     images.sort(key=lambda x: int(x.split('.')[0]))
 
     if not images:
-        await message.answer("Нет изображений для таймлапса.")
-        return
-
-    # Проверка наличия изображений
-    if not images:
         await message.answer("Нет изображений для создания таймлапса.")
         return
+
+    # Генерация списка файлов для FFmpeg
+    file_list_path = os.path.join(CACHE_FOLDER, "images.txt")
+    with open(file_list_path, "w") as file_list:
+        for image in images:
+            file_list.write(f"file '{os.path.join(CACHE_FOLDER, image)}'\n")
 
     # Генерация видео с помощью FFmpeg
     try:
         ffmpeg_command = [
             "ffmpeg",
-            "-framerate", "30",
-            "-i", os.path.join(CACHE_FOLDER, "%d.png"),
+            "-f", "concat",
+            "-safe", "0",
+            "-i", file_list_path,
             "-c:v", "libx264",
             "-pix_fmt", "yuv420p",
             VIDEO_PATH
@@ -67,11 +70,10 @@ async def art_handler(message: Message, time3: str, time4: str):
 
         # Загрузка видео в VK
         ready_video = await video_uploader.upload(file_source=VIDEO_PATH)
-
         await message.answer(f"Таймлапс {time3}-{time4} готов✅", attachment=ready_video)
     except subprocess.CalledProcessError as e:
-        await message.answer(f"Ошибка при создании видео с помощью FFmpeg: {str(e)}")
+        await message.answer(f"Ошибка при создании видео с помощью FFmpeg: {e}")
     except Exception as e:
-        await message.answer(f"Ошибка при отправке видео: {str(e)}")
+        await message.answer(f"Ошибка при отправке видео: {e}")
 
 user.run_forever()
