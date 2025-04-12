@@ -1,4 +1,4 @@
 requests
-opencv-python
+opencv-python-headless
 vkbottle
 python-dotenv
