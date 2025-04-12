@@ -30,33 +30,32 @@ async def cache_images_handler(message: Message, time1: str, time2: str):
 
     await message.answer("Процесс кеширования завершён✅")
 
-# Создание таймлапса с использованием FFmpeg
+# Создание таймлапса без использования файла images.txt
 @user.on.message(text="!таймлапс <time3> <time4>")
 async def art_handler(message: Message, time3: str, time4: str):
     await message.answer("Создание таймлапса запущено✅")
 
     time3, time4 = int(time3), int(time4)
-    images = [img for img in os.listdir(CACHE_FOLDER)
+    images = [os.path.join(CACHE_FOLDER, img) for img in os.listdir(CACHE_FOLDER)
               if img.endswith(".png") and time3 <= int(img.split('.')[0]) <= time4]
-    images.sort(key=lambda x: int(x.split('.')[0]))
+    images.sort(key=lambda x: int(os.path.basename(x).split('.')[0]))
 
     if not images:
         await message.answer("Нет изображений для создания таймлапса.")
         return
 
-    # Генерация списка файлов для FFmpeg
-    file_list_path = os.path.join(CACHE_FOLDER, "images.txt")
-    with open(file_list_path, "w") as file_list:
-        for image in images:
-            file_list.write(f"file '{os.path.join(CACHE_FOLDER, image)}'\n")
+    # Проверяем, что изображения существуют
+    if not images:
+        await message.answer("Нет изображений для создания таймлапса.")
+        return
 
-    # Генерация видео с помощью FFmpeg
     try:
+        # Генерация видео с помощью FFmpeg
         ffmpeg_command = [
             "ffmpeg",
-            "-f", "concat",
-            "-safe", "0",
-            "-i", file_list_path,
+            "-framerate", "30",
+            "-pattern_type", "glob",
+            "-i", os.path.join(CACHE_FOLDER, "*.png"),
             "-c:v", "libx264",
             "-pix_fmt", "yuv420p",
             VIDEO_PATH
